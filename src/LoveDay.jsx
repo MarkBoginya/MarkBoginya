@@ -141,7 +141,7 @@ export default function LoveDay() {
   const copyShare = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      alert("Ссылка скопирована! Отправь её любимому человеку ✨");
+      alert("Ссылка скопирована! ✨");
     } catch (e) {
       console.error(e);
     }
