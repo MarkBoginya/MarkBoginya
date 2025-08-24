@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* smooth fonts a bit */
+* { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }

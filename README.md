@@ -1,16 +1,12 @@
-## Hi there 👋
+# Love Day (Tailwind v3 pinned)
+Шаблон с дизайном как в первом решении. Пакеты зафиксированы под Tailwind 3.4.13.
 
-<!--
-**MarkBoginya/MarkBoginya** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+## Запуск
+```powershell
+npm i
+npm run dev
+```
 
-Here are some ideas to get you started:
-
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+## GitHub Pages
+1. В `vite.config.js` поставь `base: '/REPO_NAME/'`.
+2. Закоммить и запушь в репозиторий с включённым GitHub Pages (Actions).
