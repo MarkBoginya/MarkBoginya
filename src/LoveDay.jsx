@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, CalendarDays, Sparkles, Share2 } from "lucide-react";
 
-/** <<< ВСТАВЬ СВОЙ DISCORD WEBHOOK ТУТ >>> */
-const WEBHOOK_URL = "https://discord.com/api/webhooks/1409501240509075588/WZbm87MXoGfO1vQVtWDBeyDJ_w6c9kesLMkkl3VxbtvESOuh-rurbY28bEgkiwJVSxnw"; // замените на свой
+/** ====== НАСТРОЙКИ ====== */
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1409501240509075588/WZbm87MXoGfO1vQVtWDBeyDJ_w6c9kesLMkkl3VxbtvESOuh-rurbY28bEgkiwJVSxnw"; // твой вебхук (виден в исходнике!)
+const YOUTUBE_URL = "https://www.youtube.com/watch?v=BtNirTwTtXY";
+/** ======================= */
 
-/** Таймер до цели */
 function useCountdown(targetISO = "2025-09-27T00:00:00+02:00") {
   const target = useMemo(() => new Date(targetISO).getTime(), [targetISO]);
   const [now, setNow] = useState(Date.now());
@@ -14,11 +15,13 @@ function useCountdown(targetISO = "2025-09-27T00:00:00+02:00") {
     return () => clearInterval(id);
   }, []);
   const diff = Math.max(0, target - now);
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-  const minutes = Math.floor((diff / (1000 * 60)) % 60);
-  const seconds = Math.floor((diff / 1000) % 60);
-  return { days, hours, minutes, seconds, diff };
+  return {
+    days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+    minutes: Math.floor((diff / (1000 * 60)) % 60),
+    seconds: Math.floor((diff / 1000) % 60),
+    diff,
+  };
 }
 
 /** Конфетти: phase 'off' | 'on' | 'fading' */
@@ -57,7 +60,6 @@ function useConfetti(phase) {
 
     function tick(ts = 0) {
       ctx.clearRect(0, 0, W, H);
-
       let alpha = 1;
       if (phase === "fading") {
         if (!startFade) startFade = ts || performance.now();
@@ -113,7 +115,7 @@ export default function LoveDay() {
   const { days, hours, minutes, seconds, diff } = useCountdown(TARGET);
   const partyTime = diff === 0;
 
-  const [confettiPhase, setConfettiPhase] = useState("off"); // 'off' | 'on' | 'fading'
+  const [confettiPhase, setConfettiPhase] = useState("off");
   const canvasRef = useConfetti(confettiPhase);
 
   const url = new URL(typeof window !== "undefined" ? window.location.href : "http://localhost");
@@ -124,39 +126,31 @@ export default function LoveDay() {
   const [showHeart, setShowHeart] = useState(false);
   const [answer, setAnswer] = useState(null); // null | 'yes' | 'no'
   const [sending, setSending] = useState(false);
+  const [earlyMode, setEarlyMode] = useState(false); // Досрочный режим
 
-  // Уведомление в Discord о клике
+  // Отправка в Discord
   const notifyDiscord = async (choice) => {
-    // если вебхук не указан — выходим молча
     if (!WEBHOOK_URL || WEBHOOK_URL.includes("XXXXXXXX")) return;
-    if (sending) return; // анти-даблклик
+    if (sending) return;
     setSending(true);
     try {
       const payload = {
         username: "Love Day Bot",
-        content: null,
         embeds: [
           {
             title: "Ответ получен",
-            description:
-              choice === "yes"
-                ? "Она нажала **Согласна** 💖"
-                : "Она нажала **Не согласна**",
+            description: choice === "yes" ? "Она нажала **Согласна** 💖" : "Она нажала **Не согласна**",
             color: choice === "yes" ? 0xff4d6d : 0x6b7280,
             fields: [
               { name: "Кому", value: String(to), inline: true },
               { name: "URL", value: window.location.href, inline: false },
-              {
-                name: "Время",
-                value: new Date().toLocaleString("ru-RU"),
-                inline: true,
-              },
+              { name: "Режим", value: earlyMode ? "Досрочный" : "В срок", inline: true },
+              { name: "Время", value: new Date().toLocaleString("ru-RU"), inline: true },
             ],
             footer: { text: "Answer-gift" },
           },
         ],
       };
-
       await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -169,18 +163,17 @@ export default function LoveDay() {
     }
   };
 
-  // При наступлении времени: показать текст, сердце на 5с и конфетти с плавным затуханием
+  // Когда наступит время: показать сердце/конфетти и открыть сообщение
   useEffect(() => {
     if (partyTime) {
       setRevealed(true);
+      setEarlyMode(false);       // точно не досрочно
       setConfettiPhase("on");
       setShowHeart(true);
-
       const hideHeart = setTimeout(() => {
         setShowHeart(false);
         setConfettiPhase("fading");
       }, 5000);
-
       return () => clearTimeout(hideHeart);
     }
   }, [partyTime]);
@@ -199,7 +192,7 @@ export default function LoveDay() {
       {/* Конфетти */}
       <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none" />
 
-      {/* Большое сердце (5 секунд, с плавным появлением/исчезновением) */}
+      {/* Большое сердце на 5s (только при наступлении времени) */}
       <AnimatePresence>
         {showHeart && (
           <motion.div
@@ -207,7 +200,6 @@ export default function LoveDay() {
             animate={{ scale: [0, 1.2, 1], opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            aria-hidden
             className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
           >
             <motion.div
@@ -224,12 +216,7 @@ export default function LoveDay() {
       <div className="max-w-3xl mx-auto px-6 py-16 md:py-24">
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring" }}
-              className="p-3 bg-rose-100 rounded-2xl shadow"
-            >
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }} className="p-3 bg-rose-100 rounded-2xl shadow">
               <Heart className="w-6 h-6" />
             </motion.div>
             <div>
@@ -239,10 +226,7 @@ export default function LoveDay() {
               </p>
             </div>
           </div>
-          <button
-            onClick={copyShare}
-            className="inline-flex items-center gap-2 px-3 py-2 bg-white border rounded-xl shadow hover:shadow-md active:scale-[0.98]"
-          >
+          <button onClick={copyShare} className="inline-flex items-center gap-2 px-3 py-2 bg-white border rounded-xl shadow hover:shadow-md active:scale-[0.98]">
             <Share2 className="w-4 h-4" /> Поделиться
           </button>
         </header>
@@ -263,40 +247,53 @@ export default function LoveDay() {
             ))}
           </motion.div>
 
-          {/* Карточка с текстом и выбором ответа */}
+          {/* Карточка */}
           <motion.div initial={{ scale: 0.98, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2 }} className="mt-10">
             <div className="bg-white rounded-3xl shadow-lg p-8 md:p-10">
               <div className="flex items-center gap-2 text-rose-600 font-semibold uppercase tracking-wide text-xs">
                 <Sparkles className="w-4 h-4" /> Сюрприз
               </div>
 
+              {/* До наступления даты */}
               {!revealed ? (
                 <div>
                   <h2 className="mt-4 text-xl md:text-2xl font-bold">Сообщение откроется 27 сентября</h2>
-                  <p className="mt-2 text-gray-600">А пока — сохраняй ссылку и возвращайся в этот день.</p>
+                  <p className="mt-2 text-gray-600">
+                    А пока — сохраняй ссылку и возвращайся в этот день.
+                  </p>
+
+                  {/* Досрочный ответ */}
+                  <div className="mt-6">
+                    <button
+                      onClick={() => { setEarlyMode(true); setRevealed(true); }}
+                      className="px-5 py-3 rounded-2xl bg-white border font-medium shadow hover:shadow-md active:scale-[0.98]"
+                    >
+                      Ответить сейчас
+                    </button>
+                    {earlyMode && (
+                      <p className="mt-2 text-xs text-gray-500">
+                        Досрочный режим — сердце и конфетти появятся только 27 сентября.
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
+                // После раскрытия (по дате или досрочно)
                 <div>
                   <h2 className="mt-4 text-2xl md:text-3xl font-extrabold">Для {to}</h2>
 
-                  {/* Если ответа ещё нет — показываем две кнопки */}
+                  {/* Если ответа ещё нет — две кнопки */}
                   {answer === null && (
-                    <div className="mt-6 flex flex-wrap items-center gap-3">
+                    <div className="mt-6 flex gap-3">
                       <button
-                        onClick={async () => {
-                          setAnswer("yes");
-                          await notifyDiscord("yes");
-                        }}
+                        onClick={async () => { setAnswer("yes"); await notifyDiscord("yes"); }}
                         disabled={sending}
                         className="px-5 py-3 rounded-2xl bg-rose-600 text-white font-medium shadow hover:shadow-md active:scale-[0.98] disabled:opacity-60"
                       >
                         Согласна стать моей девушкой 💖
                       </button>
                       <button
-                        onClick={async () => {
-                          setAnswer("no");
-                          await notifyDiscord("no");
-                        }}
+                        onClick={async () => { setAnswer("no"); await notifyDiscord("no"); }}
                         disabled={sending}
                         className="px-5 py-3 rounded-2xl bg-white border font-medium shadow hover:shadow-md active:scale-[0.98] disabled:opacity-60"
                       >
@@ -305,21 +302,42 @@ export default function LoveDay() {
                     </div>
                   )}
 
-                  {/* Если «да» — показываем твой текст */}
+                  {/* Если ДА */}
                   {answer === "yes" && (
-                    <div className="mt-6 text-lg leading-relaxed space-y-4">
-                      <p>Влада 💖</p>
-                      <p>Сегодня для меня особенный день. Спасибо тебе за ответ и за то, что впустила меня в своё сердце.</p>
-                      <p>С этого момента я хочу быть рядом — поддерживать, радовать и делать твою жизнь хотя бы чуть-чуть светлее.</p>
-                      <p>
-                        Ты удивительный человек, и я счастлив, что могу называть тебя своей.{" "}
-                        <span className="font-semibold">Давай будем рядом</span>.
-                      </p>
-                    </div>
+                    <>
+                      <div className="mt-6 text-lg leading-relaxed space-y-4">
+                        <p>Влада 💖</p>
+                        <p>Сегодня для меня особенный день. Спасибо тебе за ответ и за то, что впустила меня в своё сердце.</p>
+                        <p>С этого момента я хочу быть рядом — поддерживать, радовать и делать твою жизнь хотя бы чуть-чуть светлее.</p>
+                        <p>
+                          Ты удивительный человек, и я счастлив, что могу называть тебя своей.{" "}
+                          <span className="font-semibold">Давай будем рядом</span>.
+                        </p>
+                      </div>
+                      <div className="mt-6">
+                        <a
+                          href={YOUTUBE_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-6 py-3 text-center block rounded-2xl bg-rose-600 text-white font-semibold shadow hover:shadow-md active:scale-[0.98]"
+                        >
+                          Перейти к видео ▶️
+                        </a>
+                      </div>
+                    </>
                   )}
 
-                  {/* Если «нет» — ничего не выводим */}
-                  {answer === "no" && <div className="mt-6" />}
+                  {/* Если НЕТ — закрывающее сообщение */}
+                  {answer === "no" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-6 text-lg leading-relaxed space-y-4 text-gray-700"
+                    >
+                      <p>Влада, спасибо за честность.</p>
+                      <p>Я уважаю твой выбор и больше не буду тебя беспокоить. Береги себя и будь счастлива.</p>
+                    </motion.div>
+                  )}
                 </div>
               )}
             </div>
