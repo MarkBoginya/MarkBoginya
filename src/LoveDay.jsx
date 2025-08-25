@@ -109,7 +109,7 @@ function useConfetti(phase) {
 }
 
 export default function LoveDay() {
-  const TARGET = "2025-07-27T00:00:00+02:00";
+  const TARGET = "2025-09-27T00:00:00+02:00";
   const { days, hours, minutes, seconds, diff } = useCountdown(TARGET);
   const partyTime = diff === 0;
 
