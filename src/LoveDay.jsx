@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, CalendarDays, Sparkles, Share2 } from "lucide-react";
 
+/** <<< ВСТАВЬ СВОЙ DISCORD WEBHOOK ТУТ >>> */
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1409501240509075588/WZbm87MXoGfO1vQVtWDBeyDJ_w6c9kesLMkkl3VxbtvESOuh-rurbY28bEgkiwJVSxnw"; // замените на свой
+
 /** Таймер до цели */
 function useCountdown(targetISO = "2025-09-27T00:00:00+02:00") {
   const target = useMemo(() => new Date(targetISO).getTime(), [targetISO]);
@@ -18,7 +21,7 @@ function useCountdown(targetISO = "2025-09-27T00:00:00+02:00") {
   return { days, hours, minutes, seconds, diff };
 }
 
-
+/** Конфетти: phase 'off' | 'on' | 'fading' */
 function useConfetti(phase) {
   const canvasRef = useRef(null);
   const rafRef = useRef(0);
@@ -49,20 +52,18 @@ function useConfetti(phase) {
     }));
 
     let startFade = 0;
-    const fadeDuration = 1500; // мс
+    const fadeDuration = 1500;
     let running = false;
 
     function tick(ts = 0) {
       ctx.clearRect(0, 0, W, H);
 
-      // Рассчёт альфы в зависимости от фазы
       let alpha = 1;
       if (phase === "fading") {
         if (!startFade) startFade = ts || performance.now();
         const elapsed = (ts || performance.now()) - startFade;
         alpha = Math.max(0, 1 - elapsed / fadeDuration);
         if (alpha === 0) {
-          // полная прозрачность — стопаем
           cancelAnimationFrame(rafRef.current);
           return;
         }
@@ -108,12 +109,11 @@ function useConfetti(phase) {
 }
 
 export default function LoveDay() {
-  const TARGET = "2025-09-27T00:00:00+02:00";
+  const TARGET = "2025-07-27T00:00:00+02:00";
   const { days, hours, minutes, seconds, diff } = useCountdown(TARGET);
   const partyTime = diff === 0;
 
-  // 'off' | 'on' | 'fading' для конфетти
-  const [confettiPhase, setConfettiPhase] = useState("off");
+  const [confettiPhase, setConfettiPhase] = useState("off"); // 'off' | 'on' | 'fading'
   const canvasRef = useConfetti(confettiPhase);
 
   const url = new URL(typeof window !== "undefined" ? window.location.href : "http://localhost");
@@ -122,7 +122,54 @@ export default function LoveDay() {
 
   const [revealed, setRevealed] = useState(false);
   const [showHeart, setShowHeart] = useState(false);
+  const [answer, setAnswer] = useState(null); // null | 'yes' | 'no'
+  const [sending, setSending] = useState(false);
 
+  // Уведомление в Discord о клике
+  const notifyDiscord = async (choice) => {
+    // если вебхук не указан — выходим молча
+    if (!WEBHOOK_URL || WEBHOOK_URL.includes("XXXXXXXX")) return;
+    if (sending) return; // анти-даблклик
+    setSending(true);
+    try {
+      const payload = {
+        username: "Love Day Bot",
+        content: null,
+        embeds: [
+          {
+            title: "Ответ получен",
+            description:
+              choice === "yes"
+                ? "Она нажала **Согласна** 💖"
+                : "Она нажала **Не согласна**",
+            color: choice === "yes" ? 0xff4d6d : 0x6b7280,
+            fields: [
+              { name: "Кому", value: String(to), inline: true },
+              { name: "URL", value: window.location.href, inline: false },
+              {
+                name: "Время",
+                value: new Date().toLocaleString("ru-RU"),
+                inline: true,
+              },
+            ],
+            footer: { text: "Answer-gift" },
+          },
+        ],
+      };
+
+      await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) {
+      console.error("Webhook error:", e);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // При наступлении времени: показать текст, сердце на 5с и конфетти с плавным затуханием
   useEffect(() => {
     if (partyTime) {
       setRevealed(true);
@@ -130,8 +177,8 @@ export default function LoveDay() {
       setShowHeart(true);
 
       const hideHeart = setTimeout(() => {
-        setShowHeart(false);              // триггер exit-анимации сердца
-        setConfettiPhase("fading");       // запускаем затухание конфетти
+        setShowHeart(false);
+        setConfettiPhase("fading");
       }, 5000);
 
       return () => clearTimeout(hideHeart);
@@ -152,7 +199,7 @@ export default function LoveDay() {
       {/* Конфетти */}
       <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none" />
 
-      {/* Большое сердце (5 секунд, потом плавный исчез) */}
+      {/* Большое сердце (5 секунд, с плавным появлением/исчезновением) */}
       <AnimatePresence>
         {showHeart && (
           <motion.div
@@ -216,7 +263,7 @@ export default function LoveDay() {
             ))}
           </motion.div>
 
-          {/* Карточка с текстом */}
+          {/* Карточка с текстом и выбором ответа */}
           <motion.div initial={{ scale: 0.98, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2 }} className="mt-10">
             <div className="bg-white rounded-3xl shadow-lg p-8 md:p-10">
               <div className="flex items-center gap-2 text-rose-600 font-semibold uppercase tracking-wide text-xs">
@@ -224,22 +271,55 @@ export default function LoveDay() {
               </div>
 
               {!revealed ? (
-                  <div>
-                    <h2 className="mt-4 text-xl md:text-2xl font-bold">Сообщение откроется 27 сентября</h2>
-                    <p className="mt-2 text-gray-600">А пока — сохраняй ссылку и возвращайся в этот день.</p>
-                  </div>
-                ) : (
+                <div>
+                  <h2 className="mt-4 text-xl md:text-2xl font-bold">Сообщение откроется 27 сентября</h2>
+                  <p className="mt-2 text-gray-600">А пока — сохраняй ссылку и возвращайся в этот день.</p>
+                </div>
+              ) : (
                 <div>
                   <h2 className="mt-4 text-2xl md:text-3xl font-extrabold">Для {to}</h2>
-                  <div className="mt-3 text-lg leading-relaxed space-y-4">
-                    <p>Влада 💖</p>
-                    <p>Сегодня для меня особенный день. Спасибо тебе за ответ и за то, что впустила меня в своё сердце.</p>
-                    <p>С этого момента я хочу быть рядом — поддерживать, радовать и делать твою жизнь хотя бы чуть-чуть светлее.</p>
-                    <p>
-                      Ты удивительный человек, и я счастлив, что могу называть тебя своей.{" "}
-                      <span className="font-semibold">Давай будем рядом</span>.
-                    </p>
-                  </div>
+
+                  {/* Если ответа ещё нет — показываем две кнопки */}
+                  {answer === null && (
+                    <div className="mt-6 flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={async () => {
+                          setAnswer("yes");
+                          await notifyDiscord("yes");
+                        }}
+                        disabled={sending}
+                        className="px-5 py-3 rounded-2xl bg-rose-600 text-white font-medium shadow hover:shadow-md active:scale-[0.98] disabled:opacity-60"
+                      >
+                        Согласна стать моей девушкой 💖
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setAnswer("no");
+                          await notifyDiscord("no");
+                        }}
+                        disabled={sending}
+                        className="px-5 py-3 rounded-2xl bg-white border font-medium shadow hover:shadow-md active:scale-[0.98] disabled:opacity-60"
+                      >
+                        Не согласна
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Если «да» — показываем твой текст */}
+                  {answer === "yes" && (
+                    <div className="mt-6 text-lg leading-relaxed space-y-4">
+                      <p>Влада 💖</p>
+                      <p>Сегодня для меня особенный день. Спасибо тебе за ответ и за то, что впустила меня в своё сердце.</p>
+                      <p>С этого момента я хочу быть рядом — поддерживать, радовать и делать твою жизнь хотя бы чуть-чуть светлее.</p>
+                      <p>
+                        Ты удивительный человек, и я счастлив, что могу называть тебя своей.{" "}
+                        <span className="font-semibold">Давай будем рядом</span>.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Если «нет» — ничего не выводим */}
+                  {answer === "no" && <div className="mt-6" />}
                 </div>
               )}
             </div>
