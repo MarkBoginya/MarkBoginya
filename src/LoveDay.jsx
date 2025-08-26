@@ -7,7 +7,7 @@ const WEBHOOK_URL = "https://discord.com/api/webhooks/1409501240509075588/WZbm87
 const YOUTUBE_URL = "https://www.youtube.com/watch?v=BtNirTwTtXY";
 /** ======================= */
 
-function useCountdown(targetISO = "2025-09-27T00:00:00+02:00") {
+function useCountdown(targetISO = "2025-08-26T00:00:00+02:00") {
   const target = useMemo(() => new Date(targetISO).getTime(), [targetISO]);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -111,7 +111,7 @@ function useConfetti(phase) {
 }
 
 export default function LoveDay() {
-  const TARGET = "2025-09-27T00:00:00+02:00";
+  const TARGET = "2025-08-26T00:00:00+02:00";
   const { days, hours, minutes, seconds, diff } = useCountdown(TARGET);
   const partyTime = diff === 0;
 
